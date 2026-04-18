@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FocusKeeper - Stay Focused</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>FocusKeeper</h1>
+        <p class="subtitle">Stay focused. Eyes on the screen.</p>
+        
+        <!-- Popup launch button (only shows on main page) -->
+        <div class="control-buttons">
+            <button id="popup-btn" class="popup-btn" onclick="launchPopup()">
+                🚀 Launch as Popup Window
+            </button>
+            <button id="toggle-btn" class="toggle-btn" onclick="toggleDetection()">
+                ⏸️ Pause
+            </button>
+        </div>
+        
+        <div class="video-container">
+            <video id="webcam" autoplay playsinline></video>
+            <canvas id="canvas"></canvas>
+        </div>
+        
+        <div class="status-bar">
+            <div class="status">
+                <span class="label">Status:</span>
+                <span id="status-text" class="value">Initializing...</span>
+            </div>
+            <div class="timer">
+                <span class="label">Eyes Away Time:</span>
+                <span id="timer-display" class="value">00:00</span>
+            </div>
+        </div>
+        
+        <!-- Alert Time Slider -->
+        <div class="slider-container">
+            <div class="slider-header">
+                <span class="slider-label">Alert after:</span>
+                <span id="slider-value" class="slider-value">1 min</span>
+            </div>
+            <input type="range" id="time-slider" class="time-slider" 
+                   min="10" max="600" value="60" step="10"
+                   oninput="updateAlertTime(this.value)">
+        </div>
+        
+        <div id="error-message" class="error-message hidden">
+            <p>⚠️ Camera access denied. Please allow camera access to use FocusKeeper.</p>
+        </div>
+    </div>
+    
+    <!-- Warning Overlay -->
+    <div id="warning-overlay" class="warning-overlay hidden">
+        <div class="warning-content">
+            <span class="warning-text">LOOK AT THE SCREEN!</span>
+        </div>
+    </div>
+
+    <!-- TensorFlow.js and Face Detection from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-landmarks-detection"></script>
+    <script src="app.js"></script>
+    
+    <script>
+        // Detection paused state
+        let detectionPaused = false;
+        
+        function toggleDetection() {
+            const btn = document.getElementById('toggle-btn');
+            detectionPaused = !detectionPaused;
+            
+            if (detectionPaused) {
+                btn.textContent = '▶️ Resume';
+                btn.classList.add('paused');
+                // Reset timer when pausing
+                distractedTime = 0;
+                lastLookingAwayTime = null;
+                document.getElementById('status-text').textContent = 'Paused';
+                document.getElementById('status-text').classList.remove('detected');
+                hideWarning();
+            } else {
+                btn.textContent = '⏸️ Pause';
+                btn.classList.remove('paused');
+                document.getElementById('status-text').textContent = 'Resuming...';
+            }
+        }
+        
+        // Alert time slider function
+        function updateAlertTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            
+            let displayText;
+            if (mins === 0) {
+                displayText = secs + ' sec';
+            } else if (secs === 0) {
+                displayText = mins + ' min';
+            } else {
+                displayText = mins + ' min ' + secs + ' sec';
+            }
+            
+            document.getElementById('slider-value').textContent = displayText;
+            
+            // Update the CONFIG in app.js
+            CONFIG.WARNING_LIMIT = seconds * 1000;
+            console.log('Alert time set to:', seconds, 'seconds');
+        }
+        
+        // Initialize slider display on load
+        document.addEventListener('DOMContentLoaded', function() {
+            const slider = document.getElementById('time-slider');
+            if (slider) {
+                updateAlertTime(slider.value);
+            }
+        });
+        
+        // Launch popup window function
+        function launchPopup() {
+            const width = 380;
+            const height = 580;
+            const left = window.screen.width - width - 20;
+            const top = 20;
+            
+            const popup = window.open(
+                'popup.html',
+                'FocusKeeper',
+                `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=no,toolbar=no,menubar=no,location=no,status=no`
+            );
+            
+            if (popup) {
+                popup.focus();
+            } else {
+                alert('Please allow popups for this site to use the popup feature.');
+            }
+        }
+        
+        // Hide popup button if already in popup mode
+        if (window.opener || window.name === 'FocusKeeper') {
+            document.getElementById('popup-btn').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

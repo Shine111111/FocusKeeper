@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FocusKeeper</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #ffffff;
+            overflow: hidden;
+        }
+
+        .container {
+            padding: 10px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 1.3rem;
+            margin-bottom: 5px;
+            background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .video-container {
+            position: relative;
+            display: inline-block;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 5px 20px rgba(0, 212, 255, 0.2);
+            border: 2px solid #00d4ff;
+            margin: 8px 0;
+        }
+
+        #webcam {
+            width: 320px;
+            height: 240px;
+            display: block;
+            background-color: #000;
+        }
+
+        #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 320px;
+            height: 240px;
+            pointer-events: none;
+        }
+
+        .status-bar {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            margin-top: 8px;
+        }
+
+        .status, .timer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .label {
+            color: #a0a0a0;
+            font-size: 0.85rem;
+        }
+
+        .value {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        #status-text {
+            color: #00d4ff;
+        }
+
+        #status-text.detected {
+            color: #ff6b6b;
+            animation: pulse-text 0.5s ease-in-out infinite alternate;
+        }
+
+        @keyframes pulse-text {
+            from { opacity: 1; }
+            to { opacity: 0.6; }
+        }
+
+        #timer-display {
+            color: #ffd93d;
+            font-family: 'Courier New', monospace;
+            font-size: 1.2rem;
+        }
+
+        .error-message {
+            padding: 10px;
+            background: rgba(255, 107, 107, 0.2);
+            border: 1px solid #ff6b6b;
+            border-radius: 8px;
+            color: #ff6b6b;
+            font-size: 0.85rem;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* Warning Overlay - Very visible! */
+        .warning-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: #ff0000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        .warning-content {
+            text-align: center;
+            padding: 20px;
+        }
+
+        .warning-text {
+            font-size: 2rem;
+            font-weight: 900;
+            color: white;
+            text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            animation: pulse 0.4s ease-in-out infinite alternate;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(1.1);
+                opacity: 0.8;
+            }
+        }
+
+        /* Always on top indicator */
+        .on-top-hint {
+            font-size: 0.7rem;
+            color: #666;
+            margin-top: 8px;
+        }
+        
+        .pip-btn {
+            background: linear-gradient(90deg, #ff6b6b, #ffa500);
+            border: none;
+            color: white;
+            padding: 10px 16px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-bottom: 10px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .pip-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
+        }
+        
+        .pip-btn:active {
+            transform: translateY(0);
+        }
+        
+        .pip-btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+        
+        /* Control buttons container */
+        .control-buttons {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        
+        .control-buttons .pip-btn {
+            flex: 1;
+            margin-bottom: 0;
+        }
+        
+        .toggle-btn {
+            background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+            border: none;
+            color: white;
+            padding: 10px 16px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            flex: 0 0 auto;
+            min-width: 90px;
+        }
+        
+        .toggle-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 212, 255, 0.4);
+        }
+        
+        .toggle-btn:active {
+            transform: translateY(0);
+        }
+        
+        .toggle-btn.paused {
+            background: linear-gradient(90deg, #44ff44, #00aa00);
+        }
+        
+        /* Slider styles */
+        .slider-container {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 8px;
+        }
+        
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .slider-label {
+            color: #a0a0a0;
+            font-size: 0.85rem;
+        }
+        
+        .slider-value {
+            color: #ffd93d;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+        
+        .time-slider {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #333;
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        
+        .time-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 212, 255, 0.4);
+        }
+        
+        .time-slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+            cursor: pointer;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 FocusKeeper</h1>
+        
+        <!-- Control Buttons -->
+        <div class="control-buttons">
+            <button id="pip-btn" class="pip-btn" onclick="enterPiP()">
+                📌 Always On Top (PiP Mode)
+            </button>
+            <button id="toggle-btn" class="toggle-btn" onclick="toggleDetection()">
+                ⏸️ Pause
+            </button>
+        </div>
+        
+        <div class="video-container">
+            <video id="webcam" autoplay playsinline></video>
+            <canvas id="canvas"></canvas>
+        </div>
+        
+        <div class="status-bar">
+            <div class="status">
+                <span class="label">Status:</span>
+                <span id="status-text" class="value">Initializing...</span>
+            </div>
+            <div class="timer">
+                <span class="label">Eyes Away:</span>
+                <span id="timer-display" class="value">00:00</span>
+            </div>
+        </div>
+        
+        <!-- Alert Time Slider -->
+        <div class="slider-container">
+            <div class="slider-header">
+                <span class="slider-label">Alert after:</span>
+                <span id="slider-value" class="slider-value">1 min</span>
+            </div>
+            <input type="range" id="time-slider" class="time-slider" 
+                   min="10" max="600" value="60" step="10"
+                   oninput="updateAlertTime(this.value)">
+        </div>
+        
+        <div id="error-message" class="error-message hidden">
+            <p>⚠️ Camera access denied</p>
+        </div>
+        
+        <p class="on-top-hint">💡 Click "Always On Top" to keep visible over other apps</p>
+    </div>
+    
+    <!-- Warning Overlay -->
+    <div id="warning-overlay" class="warning-overlay hidden">
+        <div class="warning-content">
+            <span class="warning-text">👀 LOOK AT<br>THE SCREEN!</span>
+        </div>
+    </div>
+
+    <!-- TensorFlow.js and Face Detection from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-landmarks-detection"></script>
+    <script src="app.js"></script>
+    
+    <script>
+        // Detection paused state
+        let detectionPaused = false;
+        
+        function toggleDetection() {
+            const btn = document.getElementById('toggle-btn');
+            detectionPaused = !detectionPaused;
+            
+            if (detectionPaused) {
+                btn.textContent = '▶️ Resume';
+                btn.classList.add('paused');
+                // Reset timer when pausing
+                if (typeof state !== 'undefined') {
+                    state.lookingAwayStartTime = null;
+                    state.totalLookingAwayTime = 0;
+                }
+                document.getElementById('status-text').textContent = 'Paused';
+                document.getElementById('status-text').classList.remove('detected');
+                hideWarning();
+            } else {
+                btn.textContent = '⏸️ Pause';
+                btn.classList.remove('paused');
+                document.getElementById('status-text').textContent = 'Resuming...';
+            }
+        }
+        
+        // Override the detection loop to check for pause
+        const originalDetect = typeof detectGaze !== 'undefined' ? detectGaze : null;
+        
+        // Alert time slider function
+        function updateAlertTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            
+            let displayText;
+            if (mins === 0) {
+                displayText = secs + ' sec';
+            } else if (secs === 0) {
+                displayText = mins + ' min';
+            } else {
+                displayText = mins + ' min ' + secs + ' sec';
+            }
+            
+            document.getElementById('slider-value').textContent = displayText;
+            
+            // Update the CONFIG in app.js
+            CONFIG.WARNING_LIMIT = seconds * 1000;
+            console.log('Alert time set to:', seconds, 'seconds');
+        }
+        
+        // Initialize slider display on load
+        document.addEventListener('DOMContentLoaded', function() {
+            const slider = document.getElementById('time-slider');
+            if (slider) {
+                updateAlertTime(slider.value);
+            }
+        });
+        
+        // Play alert sound on warning
+        const originalShowWarning = showWarning;
+        showWarning = function() {
+            originalShowWarning();
+            // Try to play a beep sound
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                
+                oscillator.frequency.value = 800;
+                oscillator.type = 'square';
+                gainNode.gain.value = 0.3;
+                
+                oscillator.start();
+                setTimeout(() => {
+                    oscillator.stop();
+                }, 200);
+            } catch(e) {
+                console.log('Audio alert not available');
+            }
+            
+            // Flash the window title
+            let flash = true;
+            const flashInterval = setInterval(() => {
+                document.title = flash ? '⚠️ LOOK UP!' : '🎯 FocusKeeper';
+                flash = !flash;
+            }, 500);
+            
+            // Store interval to clear later
+            window.warningFlashInterval = flashInterval;
+        };
+        
+        // Stop flashing when warning hides
+        const originalHideWarning = hideWarning;
+        hideWarning = function() {
+            originalHideWarning();
+            if (window.warningFlashInterval) {
+                clearInterval(window.warningFlashInterval);
+                document.title = '🎯 FocusKeeper';
+            }
+        };
+        
+        // Picture-in-Picture functionality with overlay
+        let pipCanvas = null;
+        let pipVideo = null;
+        let pipAnimationId = null;
+        let pipReady = false;
+        let pipLastBeepTime = 0;
+        let pipBeepInterval = 1500; // Beep every 1.5 seconds in PiP warning
+        
+        function playPipBeep() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                
+                oscillator.frequency.value = 1000; // Higher pitch for PiP
+                oscillator.type = 'square';
+                gainNode.gain.value = 0.5; // Louder for PiP
+                
+                oscillator.start();
+                setTimeout(() => {
+                    oscillator.stop();
+                    audioCtx.close();
+                }, 150);
+            } catch(e) {
+                console.log('PiP audio not available');
+            }
+        }
+        
+        async function enterPiP() {
+            const btn = document.getElementById('pip-btn');
+            const webcam = document.getElementById('webcam');
+            
+            // Check if PiP is supported
+            if (!document.pictureInPictureEnabled) {
+                alert('Picture-in-Picture is not enabled in your browser.');
+                return;
+            }
+            
+            // Check if webcam video is ready
+            if (!webcam.srcObject || webcam.readyState < 2) {
+                alert('Please wait for the camera to load first.');
+                return;
+            }
+            
+            btn.textContent = '⏳ Loading...';
+            btn.disabled = true;
+            
+            try {
+                // Create a canvas for PiP with overlay
+                if (!pipCanvas) {
+                    pipCanvas = document.createElement('canvas');
+                    pipCanvas.width = 400;
+                    pipCanvas.height = 340;
+                    
+                    // Draw initial frame so video has content
+                    const pipCtx = pipCanvas.getContext('2d');
+                    pipCtx.fillStyle = '#1a1a2e';
+                    pipCtx.fillRect(0, 0, 400, 340);
+                    pipCtx.fillStyle = '#ffffff';
+                    pipCtx.font = '20px Arial';
+                    pipCtx.textAlign = 'center';
+                    pipCtx.fillText('Loading...', 200, 170);
+                }
+                
+                const pipCtx = pipCanvas.getContext('2d');
+                
+                // Create video element from canvas stream
+                if (!pipVideo) {
+                    const stream = pipCanvas.captureStream(30);
+                    pipVideo = document.createElement('video');
+                    pipVideo.srcObject = stream;
+                    pipVideo.muted = true;
+                    pipVideo.playsInline = true;
+                    pipVideo.autoplay = true;
+                    
+                    // Need to add to DOM for some browsers
+                    pipVideo.style.position = 'fixed';
+                    pipVideo.style.top = '-9999px';
+                    pipVideo.style.left = '-9999px';
+                    pipVideo.style.width = '1px';
+                    pipVideo.style.height = '1px';
+                    pipVideo.style.opacity = '0.01';
+                    document.body.appendChild(pipVideo);
+                }
+                
+                // Wait for video to be ready
+                await pipVideo.play();
+                
+                // Wait for metadata to load
+                await new Promise((resolve, reject) => {
+                    if (pipVideo.readyState >= 2) {
+                        resolve();
+                    } else {
+                        pipVideo.onloadeddata = resolve;
+                        pipVideo.onerror = reject;
+                        // Timeout after 3 seconds
+                        setTimeout(() => resolve(), 3000);
+                    }
+                });
+                
+                // Draw first frame
+                pipCtx.drawImage(webcam, 0, 0, 400, 280);
+                pipCtx.fillStyle = '#1a1a2e';
+                pipCtx.fillRect(0, 280, 400, 60);
+                
+                // Small delay to ensure frame is captured
+                await new Promise(r => setTimeout(r, 100));
+                
+                // Draw loop for PiP canvas
+                function drawPiP() {
+                    const statusText = document.getElementById('status-text');
+                    const timerDisplay = document.getElementById('timer-display');
+                    const warningOverlay = document.getElementById('warning-overlay');
+                    const isWarning = !warningOverlay.classList.contains('hidden');
+                    const isDistracted = statusText.classList.contains('detected');
+                    
+                    if (isWarning) {
+                        // Play repeating beep in PiP warning mode
+                        const now = Date.now();
+                        if (now - pipLastBeepTime > pipBeepInterval) {
+                            playPipBeep();
+                            pipLastBeepTime = now;
+                        }
+                        
+                        // FULL RED WARNING SCREEN
+                        pipCtx.fillStyle = '#ff0000';
+                        pipCtx.fillRect(0, 0, 400, 340);
+                        
+                        // Pulsing effect
+                        const pulse = Math.sin(Date.now() / 150) * 0.2 + 0.8;
+                        pipCtx.globalAlpha = pulse;
+                        
+                        pipCtx.fillStyle = '#ffffff';
+                        pipCtx.font = 'bold 36px Arial';
+                        pipCtx.textAlign = 'center';
+                        pipCtx.fillText('⚠️ WARNING ⚠️', 200, 120);
+                        
+                        pipCtx.font = 'bold 28px Arial';
+                        pipCtx.fillText('LOOK AT THE', 200, 180);
+                        pipCtx.fillText('SCREEN!', 200, 220);
+                        
+                        pipCtx.font = 'bold 20px Arial';
+                        pipCtx.fillText(timerDisplay.textContent, 200, 280);
+                        
+                        pipCtx.globalAlpha = 1;
+                    } else {
+                        // Draw webcam feed
+                        pipCtx.drawImage(webcam, 0, 0, 400, 280);
+                        
+                        // Draw status bar background
+                        pipCtx.fillStyle = isDistracted ? 'rgba(255, 50, 50, 0.9)' : 'rgba(0, 50, 0, 0.9)';
+                        pipCtx.fillRect(0, 280, 400, 60);
+                        
+                        // Status indicator circle
+                        pipCtx.beginPath();
+                        pipCtx.arc(25, 310, 12, 0, 2 * Math.PI);
+                        pipCtx.fillStyle = isDistracted ? '#ff4444' : '#44ff44';
+                        pipCtx.fill();
+                        
+                        // Status text
+                        pipCtx.fillStyle = '#ffffff';
+                        pipCtx.font = 'bold 16px Arial';
+                        pipCtx.textAlign = 'left';
+                        const statusMsg = isDistracted ? 'LOOKING AWAY' : 'FOCUSED';
+                        pipCtx.fillText(statusMsg, 45, 316);
+                        
+                        // Timer
+                        pipCtx.font = 'bold 24px Courier New';
+                        pipCtx.textAlign = 'right';
+                        pipCtx.fillText(timerDisplay.textContent, 385, 318);
+                    }
+                    
+                    if (document.pictureInPictureElement === pipVideo) {
+                        pipAnimationId = requestAnimationFrame(drawPiP);
+                    }
+                }
+                
+                // Enter PiP mode
+                await pipVideo.requestPictureInPicture();
+                
+                btn.textContent = '✅ PiP Active';
+                
+                // Start drawing
+                drawPiP();
+                
+                // Handle PiP close
+                pipVideo.addEventListener('leavepictureinpicture', () => {
+                    btn.textContent = '📌 Always On Top (PiP Mode)';
+                    btn.disabled = false;
+                    if (pipAnimationId) {
+                        cancelAnimationFrame(pipAnimationId);
+                    }
+                }, { once: true });
+                
+            } catch (error) {
+                console.error('PiP error:', error);
+                btn.textContent = '📌 Always On Top (PiP Mode)';
+                btn.disabled = false;
+                alert('PiP Error: ' + error.message + '\n\nTry waiting a few seconds for the camera to fully load, then click again.');
+            }
+        }
+    </script>
+</body>
+</html>
