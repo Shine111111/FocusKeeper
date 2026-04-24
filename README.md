@@ -20,9 +20,14 @@ FocusKeeper is a client-side web application designed to help you maintain produ
   - TFJS Face Landmarks Detection (`@tensorflow-models/face-landmarks-detection`)
 - **Environment:** Browser-based (Chrome, Edge, Firefox). No backend server required.
 
-## How to Run
+## Live Demo
 
-Because FocusKeeper is completely client-side, running it is incredibly simple:
+If you don't want to run the app locally, you can access the live site directly from your browser:
+**[https://shine111111.github.io/FocusKeeper/](https://shine111111.github.io/FocusKeeper/)**
+
+## How to Run Locally
+
+Because FocusKeeper is completely client-side, running it locally is incredibly simple:
 
 1. Clone or download this repository to your local machine.
 2. Navigate to the `focus-keeper` folder.
